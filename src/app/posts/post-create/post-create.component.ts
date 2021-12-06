@@ -1,31 +1,63 @@
-
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { NgForm } from '@angular/forms';
+import { ActivatedRoute, ParamMap } from '@angular/router';
 
-import { PostsService } from './posts.service';
+import { PostsService } from '../posts.service';
+import { Post } from '../posts.model';
 
 @Component({
   selector: 'app-post-create',
   templateUrl: './post-create.component.html',
-  styleUrls: ['./post-create.component.css']
+  styleUrls: ['./post-create.component.css'],
 })
-export class PostCreateComponent {
-newPost = 'Please enter text here';
-enteredContent = ' ';
-enteredTitle='';
+export class PostCreateComponent implements OnInit {
+  enteredTitle = '';
+  enteredContent = '';
+  post: Post;
+  isLoading = false;
+  private mode = 'create';
+  private postId: string;
 
+  constructor(
+    public postsService: PostsService,
+    public route: ActivatedRoute
+  ) {}
 
-  constructor(private postsService: PostsService) { }
+  ngOnInit() {
+    this.route.paramMap.subscribe((paramMap: ParamMap) => {
+      if (paramMap.has('postId')) {
+        this.mode = 'edit';
+        this.postId = paramMap.get('postId');
+        this.isLoading = true;
+        this.postsService.getPost(this.postId).subscribe((postData) => {
+          this.isLoading = false;
+          this.post = {
+            id: postData._id,
+            title: postData.title,
+            content: postData.content,
+          };
+        });
+      } else {
+        this.mode = 'create';
+        this.postId = null;
+      }
+    });
+  }
 
-  onAddPost(form: NgForm){
-    if(form.invalid){
-      return
+  onSavePost(form: NgForm) {
+    if (form.invalid) {
+      return;
     }
-      this.postsService.addPosts(form.value.title, form.value.content);
-      form.resetForm()
+    this.isLoading = true;
+    if (this.mode === 'create') {
+      this.postsService.addPost(form.value.title, form.value.content);
+    } else {
+      this.postsService.updatePost(
+        this.postId,
+        form.value.title,
+        form.value.content
+      );
     }
-
-    getErrorMessage(){
-      return 'Input Required'
-    }
-  };
+    form.resetForm();
+  }
+}
